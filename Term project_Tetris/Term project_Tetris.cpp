@@ -1,8 +1,8 @@
-﻿#include<stdio.h>
-#include<windows.h>
-#include<conio.h>
-#include<time.h>
-#include<stdlib.h>
+﻿#include <stdio.h>
+#include <windows.h>
+#include <conio.h>
+#include <time.h>
+#include <stdlib.h>
 
 #define LEFT 75
 #define RIGHT 77
@@ -45,4 +45,10 @@ void setcursortype(CURSOR_TYPE c) {
 	}
 
 	SetConsoleCursorInfo(GetStdHandle(STD_OUTPUT_HANDLE), &CurInfo);
+}
+
+int main(void)
+{
+
+	return 0;
 }
