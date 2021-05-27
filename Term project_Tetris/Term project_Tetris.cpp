@@ -102,6 +102,7 @@ void Tetris_newBlock(Tetris* tetris);
 void Tetris_move_block(Tetris* tetris, int dir);
 void Tetris_dropBlock(Tetris* tetris);
 bool Tetris_checkCrush(Tetris* tetris, int x, int y, int rotation);
+void Tetris_initialGame(Tetris* tetris);
 
 typedef struct TETRIS 
 {
@@ -133,7 +134,7 @@ typedef struct TETRIS
 		bool (*checkCrush)(Tetris* tetris, int x, int y, int rotation) = Tetris_checkCrush;
 			bool crush_on;
 
-	void (*initialGame)(void);
+	void (*initialGame)(Tetris* tetris) = Tetris_initialGame;
 
 	void (*gameOver)(void);
 		bool gameOver_on;
@@ -421,6 +422,47 @@ bool Tetris_checkCrush(Tetris* tetris, int x, int y, int rotation)
 	return true;
 }
 
+void Tetris_initialGame(Tetris* tetris)
+{
+	for (int j = 1; j < WIDTH; j++)
+	{
+		tetris->gameOrg[3][j] = CEILLING;
+	}
+	for (int i = 1; i < HEIGHT; i++)
+	{
+		tetris->gameOrg[i][0] = WALL;
+		tetris->gameOrg[i][WIDTH - 1] = WALL;
+	}
+	for (int j = 0; j < WIDTH; j++)
+	{
+		tetris->gameOrg[HEIGHT - 1][j] = WALL;
+	}
+
+	gotoxy(tetris->status_x, tetris->status_y);
+	switch (tetris->owner)
+	{
+	case 0:
+		printf("< PLAYER >");
+		tetris->attackQueue_x = tetris->game_x - 1;
+		break;
+	case 1:
+		printf("<PLAYER1>");
+		tetris->attackQueue_x = tetris->game_x - 1;
+		break;
+	case 2:
+		printf("<PLAYER2>");
+		tetris->attackQueue_x = tetris->game_x + WIDTH;
+		break;
+	case 3:
+		printf("<PLAYER3>");
+		tetris->attackQueue_x = tetris->game_x + WIDTH;
+		break;
+	}
+	gotoxy(tetris->status_x, tetris->status_y + 1);
+	printf("Next: ");
+	gotoxy(tetris->status_x, tetris->status_y + 6);
+	printf("Speed:%2d", tetris->speed[tetris->level]);
+}
 
 
 int main(void)
