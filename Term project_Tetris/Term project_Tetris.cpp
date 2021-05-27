@@ -14,11 +14,16 @@
 #define PLAYER2 2
 #define COMPUTER 3
 
-#define ACTIVE_BLOCK ((block.type+11)*(-1))
+#define ACTIVE_BLOCK ((tetris->block.type+11)*(-1))
 #define CEILLING -1
 #define EMPTY 0
 #define WALL 1
-#define INACTIVE_BLOCK (block.type+11)
+#define INACTIVE_BLOCK (tetris->block.type+11)
+
+#define BLOCK_SIZE 4
+
+#define WIDTH 11
+#define HEIGHT 23
 
 typedef struct BLOCKS Blocks;
 typedef struct TETRIS Tetris;
@@ -59,7 +64,7 @@ typedef struct BLOCKS
 {
 	void(*init)(Blocks* blocks) = Blocks_init;
 
-	const int shape[7][4][4][4] = { // 블럭의 모양을 저장하는 배열
+	const int shape[7][4][BLOCK_SIZE][BLOCK_SIZE] = { // 블럭의 모양을 저장하는 배열
 	{{0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0},{0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0},{0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0},{0,0,0,0,0,1,1,0,0,1,1,0,0,0,0,0}},
 	{{0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0},{0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0},{0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0},{0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0}},
 	{{0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,0},{0,0,0,0,0,0,1,0,0,1,1,0,0,1,0,0},{0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,0},{0,0,0,0,0,0,1,0,0,1,1,0,0,1,0,0}},
@@ -93,6 +98,10 @@ int Blocks_getColor(int num)
 void Tetris_init(Tetris* tetris, int game_x, int game_y, int status_x, int status_y, int owner);
 void Tetris_resetGameCpy(Tetris* tetris);
 void Tetris_drawGame(Tetris* tetris);
+void Tetris_newBlock(Tetris* tetris);
+void Tetris_move_block(Tetris* tetris, int dir);
+void Tetris_dropBlock(Tetris* tetris);
+bool Tetris_checkCrush(Tetris* tetris, int x, int y, int rotation);
 
 typedef struct TETRIS 
 {
@@ -111,19 +120,17 @@ typedef struct TETRIS
 	int status_x;
 	int status_y;
 
-	static const int WIDTH = 11;
-	static const int HEIGHT = 23;
 
 	int gameOrg[HEIGHT][WIDTH];
 	int gameCpy[HEIGHT][WIDTH];
 		void (*resetGameCpy)(Tetris* tetris) = Tetris_resetGameCpy;
 
 	void (*drawGame)(Tetris* tetris) = Tetris_drawGame;
-	void (*newBlock)(void);
+	void (*newBlock)(Tetris* tetris) = Tetris_newBlock;
 		Blocks block;
-		void (*move_block)(int dir);
-		void (*dropBlock)(void);
-		bool (*checkCrush)(int x, int y, int rotation);
+		void (*move_block)(Tetris* tetris, int dir) = Tetris_move_block;
+		void (*dropBlock)(Tetris* tetris) = Tetris_dropBlock;
+		bool (*checkCrush)(Tetris* tetris, int x, int y, int rotation) = Tetris_checkCrush;
 			bool crush_on;
 
 	void (*initialGame)(void);
@@ -163,9 +170,9 @@ void Tetris_init(Tetris* tetris, int game_x, int game_y, int status_x, int statu
 	tetris->keyCnt = 0;
 	tetris->fCnt = tetris->speed[tetris->level];
 
-	for (int i = 0; i < tetris->HEIGHT; i++)
+	for (int i = 0; i < HEIGHT; i++)
 	{
-		for (int j = 0; j < tetris->WIDTH; j++)
+		for (int j = 0; j < WIDTH; j++)
 		{
 			tetris->gameOrg[i][j] = 0;
 			tetris->gameCpy[i][j] = NULL;
@@ -173,8 +180,8 @@ void Tetris_init(Tetris* tetris, int game_x, int game_y, int status_x, int statu
 			tetris->getAttackReg[i][j] = -1;
 		}
 	}
-	tetris->pushAttackRegp = tetris->HEIGHT - 1;
-	tetris->getAttackRegP = tetris->HEIGHT - 1;
+	tetris->pushAttackRegp = HEIGHT - 1;
+	tetris->getAttackRegP = HEIGHT - 1;
 
 	tetris->game_x = game_x;
 	tetris->game_y = game_y;
@@ -190,29 +197,29 @@ void Tetris_init(Tetris* tetris, int game_x, int game_y, int status_x, int statu
 	tetris->gameMsgCnt = -1;
 
 	tetris->initialGame();
-	tetris->newBlock();
+	tetris->newBlock(tetris);
 }
 
 void Tetris_resetGameCpy(Tetris* tetris)
 {
-	for (int i = 0; i < tetris->HEIGHT; i++)
+	for (int i = 0; i < HEIGHT; i++)
 	{
-		for (int j = 0; j < tetris->WIDTH; j++)
+		for (int j = 0; j < WIDTH; j++)
 			tetris->gameCpy[i][j] = 999;
 	}
 }
 
 void Tetris_drawGame(Tetris* tetris)
 {
-	for (int j = 0; j < tetris->WIDTH - 1; j++)
+	for (int j = 0; j < WIDTH - 1; j++)
 	{
 		if (tetris->gameOrg[3][j] == EMPTY)
 			tetris->gameOrg[3][j] = CEILLING;
 	}
 
-	for (int i = 0; i < tetris->HEIGHT; i++)
+	for (int i = 0; i < HEIGHT; i++)
 	{
-		for (int j = 0; j < tetris->WIDTH; j++)
+		for (int j = 0; j < WIDTH; j++)
 		{
 			if (tetris->gameCpy[i][j] != tetris->gameOrg[i][j])
 			{
@@ -244,14 +251,176 @@ void Tetris_drawGame(Tetris* tetris)
 	}
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0007);
 
-	for (int i = 0; i < tetris->HEIGHT; i++)
+	for (int i = 0; i < HEIGHT; i++)
 	{
-		for (int j = 0; j < tetris->WIDTH; j++)
+		for (int j = 0; j < WIDTH; j++)
 		{
 			tetris->gameCpy[i][j] = tetris->gameOrg[i][j];
 		}
 	}
 }
+
+void Tetris_newBlock(Tetris* tetris)
+{
+	tetris->block.x = (WIDTH / 2) - 1;
+	tetris->block.y = 0;
+	tetris->block.type = tetris->block.type_next;
+	tetris->block.type_next = rand() % 7;
+	tetris->block.rotation = 0;
+
+	for (int i = 0; i < BLOCK_SIZE; i++)
+	{
+		for (int j = 0; j < BLOCK_SIZE; j++)
+		{
+			if (tetris->block.shape[tetris->block.type][tetris->block.rotation][i][j] == 1)
+				tetris->gameOrg[tetris->block.y + i][tetris->block.x + j] = ACTIVE_BLOCK;
+		}
+	}
+}
+
+void Tetris_move_block(Tetris* tetris, int dir)
+{
+	for (int i = 0; i < BLOCK_SIZE; i++)
+	{
+		for (int j = 0; j < BLOCK_SIZE; j++)
+		{
+			if (tetris->block.shape[tetris->block.type][tetris->block.rotation][i][j] == 1)
+				tetris->gameOrg[tetris->block.y + 1][tetris->block.x + j] = EMPTY;
+		}
+	}
+
+	switch (dir)
+	{
+	case LEFT:
+		for (int i = 0; i < BLOCK_SIZE; i++)
+		{
+			for (int j = 0; j < BLOCK_SIZE; j++)
+			{
+				if (tetris->block.shape[tetris->block.type][tetris->block.rotation][i][j] == 1)
+					tetris->gameOrg[tetris->block.y + i][tetris->block.x + j - 1] = ACTIVE_BLOCK;
+			}
+		}
+		tetris->block.x--;
+		break;
+
+	case RIGHT:
+		for (int i = 0; i < BLOCK_SIZE; i++)
+		{
+			for (int j = 0; j < BLOCK_SIZE; j++)
+			{
+				if (tetris->block.shape[tetris->block.type][tetris->block.rotation][i][j] == 1)
+					tetris->gameOrg[tetris->block.y + i][tetris->block.x + j + 1] = ACTIVE_BLOCK;
+			}
+		}
+		tetris->block.x++;
+		break;
+
+	case DOWN:
+		for (int i = 0; i < BLOCK_SIZE; i++)
+		{
+			for (int j = 0; j < BLOCK_SIZE; j++)
+			{
+				if (tetris->block.shape[tetris->block.type][tetris->block.rotation][i][j] == 1)
+					tetris->gameOrg[tetris->block.y + i + 1][tetris->block.x + j] = ACTIVE_BLOCK;
+			}
+		}
+		tetris->block.y++;
+		break;
+
+	case UP:
+		for (int i = 0; i < BLOCK_SIZE; i++)
+		{
+			for (int j = 0; j < BLOCK_SIZE; j++)
+			{
+				if (tetris->block.shape[tetris->block.type][tetris->block.rotation][i][j] == 1)
+					tetris->gameOrg[tetris->block.y + i][tetris->block.x + j] = ACTIVE_BLOCK;
+			}
+		}
+		break;
+
+
+	case 100:
+		tetris->block.rotation = (tetris->block.rotation + 1) % 4;
+		for (int i = 0; i < BLOCK_SIZE; i++)
+		{
+			for (int j = 0; j < BLOCK_SIZE; j++)
+			{
+				if (tetris->block.shape[tetris->block.type][tetris->block.rotation][i][j] == 1)
+					tetris->gameOrg[tetris->block.y + i - 1][tetris->block.x + j] = ACTIVE_BLOCK;
+			}
+		}
+		tetris->block.y--;
+		break;
+	}
+}
+
+void Tetris_dropBlock(Tetris* tetris)
+{
+	if (tetris->fCnt > 0)
+		tetris->fCnt--;
+	bool can_down = tetris->checkCrush(tetris, tetris->block.x, tetris->block.y + 1, tetris->block.rotation);
+
+	if (tetris->crush_on == true && can_down == true)
+	{
+		tetris->move_block(tetris, DOWN);
+		tetris->fCnt = tetris->speed[tetris->level];
+		tetris->crush_on = false;
+	}
+
+	if (tetris->crush_on == true && can_down == false && tetris->fCnt == 0)
+	{
+		if (tetris->gamedelayCnt == -1)
+		{
+			tetris->drawGame(tetris);
+			tetris->gameDelay(5);
+		}
+		else if (tetris->gamedelayCnt == 0)
+		{
+			for (int i = 0; i < HEIGHT; i++)
+			{
+				for (int j = 0; j < WIDTH; j++)
+				{
+					if (tetris->gameOrg[i][j] == ACTIVE_BLOCK)
+						tetris->gameOrg[i][j] = INACTIVE_BLOCK;
+				}
+			}
+			tetris->gamedelayCnt = -1;
+			tetris->crush_on = false;
+			tetris->checkLine();
+			tetris->getAttack();
+
+			if (tetris->gameOver_on == false)
+				tetris->newBlock(tetris);
+			tetris->fCnt = tetris->speed[tetris->level];
+		}
+		return;
+	}
+	if (tetris->crush_on == false && can_down == true && tetris->fCnt == 0)
+	{
+		tetris->move_block(tetris, DOWN);
+		tetris->fCnt = tetris->speed[tetris->level];
+	}
+	if (tetris->crush_on == false && can_down == false)
+	{
+		tetris->crush_on = true;
+		tetris->fCnt = tetris->speed[1];
+	}
+}
+
+bool Tetris_checkCrush(Tetris* tetris, int x, int y, int rotation)
+{
+	for (int i = 0; i < BLOCK_SIZE; i++)
+	{
+		for (int j = 0; j < BLOCK_SIZE; j++)
+		{
+			if (tetris->block.shape[tetris->block.type][rotation][i][j] == 1 
+				&& tetris->gameOrg[y + i][x + j] > 0)
+				return false;
+		}
+	}
+	return true;
+}
+
 
 
 int main(void)
