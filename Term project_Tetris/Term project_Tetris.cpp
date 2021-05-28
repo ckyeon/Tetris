@@ -103,6 +103,11 @@ void Tetris_move_block(Tetris* tetris, int dir);
 void Tetris_dropBlock(Tetris* tetris);
 bool Tetris_checkCrush(Tetris* tetris, int x, int y, int rotation);
 void Tetris_initialGame(Tetris* tetris);
+void Tetris_gameOver(Tetris* tetris);
+void Tetris_set_gameDelay(Tetris* tetris, int cnt);
+void Tetris_cnt_gameDelay(Tetris* tetris);
+void Tetris_set_gameMsg(Tetris* tetris, int x, int y, int type, int val);
+void Tetris_cnt_gameMsg(Tetris* tetris);
 
 typedef struct TETRIS 
 {
@@ -136,19 +141,19 @@ typedef struct TETRIS
 
 	void (*initialGame)(Tetris* tetris) = Tetris_initialGame;
 
-	void (*gameOver)(void);
+	void (*gameOver)(Tetris* tetris) = Tetris_gameOver;
 		bool gameOver_on;
 		int gameOverCnt;
 		int gameOverP;
 
-	void (*gameDelay)(int cnt);
+	void (*set_gameDelay)(Tetris* tetris, int cnt) = Tetris_set_gameDelay;
 		bool gameDelay_on;
-		int gamedelayCnt;
-		void (*gameDelay_off)(void);
+		int gameDelayCnt;
+		void (*cnt_gameDelay)(Tetris* tetris) = Tetris_cnt_gameDelay;
 
-	void (*gameMsg)(int x, int y, int type, int val);
+	void (*set_gameMsg)(Tetris* tetris, int x, int y, int type, int val)= Tetris_set_gameMsg;
 		int gameMsgCnt;
-		void (*gameMsg_erase)(void);
+		void (*cnt_gameMsg)(Tetris* tetris) = Tetris_cnt_gameMsg;
 
 	void (*getKey)(void);
 	int keyCnt;
@@ -192,12 +197,12 @@ void Tetris_init(Tetris* tetris, int game_x, int game_y, int status_x, int statu
 
 	tetris->crush_on = false;
 	tetris->gameDelay_on = false;
-	tetris->gamedelayCnt = -1;
+	tetris->gameDelayCnt = -1;
 	tetris->gameOver_on = false;
 	tetris->gameOverCnt = -1;
 	tetris->gameMsgCnt = -1;
 
-	tetris->initialGame();
+	tetris->initialGame(tetris);
 	tetris->newBlock(tetris);
 }
 
@@ -370,12 +375,12 @@ void Tetris_dropBlock(Tetris* tetris)
 
 	if (tetris->crush_on == true && can_down == false && tetris->fCnt == 0)
 	{
-		if (tetris->gamedelayCnt == -1)
+		if (tetris->gameDelayCnt == -1)
 		{
 			tetris->drawGame(tetris);
-			tetris->gameDelay(5);
+			tetris->set_gameDelay(tetris, 5);
 		}
-		else if (tetris->gamedelayCnt == 0)
+		else if (tetris->gameDelayCnt == 0)
 		{
 			for (int i = 0; i < HEIGHT; i++)
 			{
@@ -385,7 +390,7 @@ void Tetris_dropBlock(Tetris* tetris)
 						tetris->gameOrg[i][j] = INACTIVE_BLOCK;
 				}
 			}
-			tetris->gamedelayCnt = -1;
+			tetris->gameDelayCnt = -1;
 			tetris->crush_on = false;
 			tetris->checkLine();
 			tetris->getAttack();
@@ -464,6 +469,69 @@ void Tetris_initialGame(Tetris* tetris)
 	printf("Speed:%2d", tetris->speed[tetris->level]);
 }
 
+void Tetris_gameOver(Tetris* tetris)
+{
+	tetris->gameOverCnt++;
+	
+	if (tetris->gameOverCnt == 0)
+		tetris->gameOverP = 0;
+
+	if (tetris->gameOverP < HEIGHT - 1 && tetris->gameOverCnt % 5 == 0)
+	{
+		for (int j = 1; j < WIDTH - 1; j++)
+		{
+			if (tetris->gameOrg[tetris->gameOverP][j] > 10)
+			{
+				tetris->gameOrg[tetris->gameOverP][j] = 16;
+			}
+		}
+		tetris->gameOverP++;
+	}
+}
+
+void Tetris_set_gameDelay(Tetris* tetris, int cnt)
+{
+	tetris->gameDelay_on = true;
+	tetris->gameDelayCnt = cnt;
+}
+
+void Tetris_cnt_gameDelay(Tetris* tetris)
+{
+	if (tetris->gameDelayCnt > 0)
+		tetris->gameDelayCnt--;
+	else if (tetris->gameDelayCnt == 0)
+		tetris->gameDelay_on = false;
+}
+
+void Tetris_set_gameMsg(Tetris* tetris, int x, int y, int type, int val)
+{
+	tetris->gameMsgCnt = 10;
+
+	gotoxy(tetris->game_x + x, tetris->game_y + y);
+	switch (type)
+	{
+	case 0:		
+		printf("%d COMBO!", val);
+		break;
+	case 1:
+		printf("SPEED UP!!");
+		break;
+	case 2:
+		printf("SPEED DOWN!!");
+		break;
+	}
+}
+
+void Tetris_cnt_gameMsg(Tetris* tetris)
+{
+	if (tetris->gameMsgCnt > 0)
+		tetris->gameMsgCnt--;
+	else if (tetris->gameMsgCnt == 0)
+	{
+		tetris->resetGameCpy(tetris);
+		tetris->gameMsgCnt = -1;
+	}
+}
 
 int main(void)
 {
