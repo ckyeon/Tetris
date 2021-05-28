@@ -30,7 +30,7 @@ typedef struct TETRIS Tetris;
 
 
 void gotoxy(int x, int y) {
-	COORD pos = { 2 * x, y };
+	COORD pos = { 2 * (short)x, (short)y };
 	SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
 }
 
@@ -607,7 +607,7 @@ void Tetris_checkLine(Tetris* tetris, Blocks* block)
 						&& block->shape[block->type][block->rotation][i - block->y][m - block->x] == 1)
 						tetris->pushAttackReg[tetris->pushAttackRegP][m] = 0;
 					else
-						tetris->pushAttackReg[tetris->pushAttackRegP][m] == 16;
+						tetris->pushAttackReg[tetris->pushAttackRegP][m] = 16;
 				}
 				tetris->pushAttackRegP--;
 				block->y++;
@@ -700,6 +700,80 @@ void Tetris_getAttack(Tetris* tetris)
 		}
 	}
 }
+
+
+typedef struct BTM {
+	void (*init)(BattleTetrisManager* btm);
+	Tetris* p1;
+	Tetris* p2;
+
+	void (*resetManager)(BattleTetrisManager* btm);
+
+	void (*gamePlay)(Tetris* A);
+	void (*getKey)(void);
+	void (*pushAttack)(Tetris* A, Tetris* B);
+	void (*checkWinner)(Tetris A, Tetris B);
+		bool winner_on;
+
+}BattleTetrisManager;
+
+void BTM_init(BattleTetrisManager* btm)
+{
+	btm->p1 = NULL;
+	btm->p2 = NULL;
+}
+
+void BTM_resetManager(BattleTetrisManager* btm)
+{
+	system("cls");
+	free(btm->p1);
+	free(btm->p2);
+	btm->winner_on = false;
+
+	btm->p1 = (Tetris*)malloc(sizeof(Tetris));
+	btm->p1->init(btm->p1, 2, 1, 14, 2, PLAYER1);
+
+	btm->p2 = (Tetris*)malloc(sizeof(Tetris));
+	btm->p2->init(btm->p2, 27, 1, 22, 2, PLAYER2);
+
+	GetAsyncKeyState(VK_LEFT);
+	GetAsyncKeyState(VK_RIGHT);
+	GetAsyncKeyState(VK_UP);
+	GetAsyncKeyState(VK_DOWN);
+	GetAsyncKeyState(VK_SPACE);
+	GetAsyncKeyState('L');
+
+	GetAsyncKeyState('F');
+	GetAsyncKeyState('H');
+	GetAsyncKeyState('G');
+	GetAsyncKeyState('T');
+	GetAsyncKeyState('Q');
+}
+
+void BTM_gamePlay(Tetris* A)
+{
+	if (A->gameMsgCnt >= 0)
+		A->cnt_gameMsg(A);
+
+	if (A->gameDelay_on == true)
+	{
+		A->cnt_gameMsg(A);
+	}
+	else
+	{
+		if (A->gameOver_on == false)
+		{
+			A->getKey(A, &(A->block));
+		}
+		else
+		{
+			A->gameOver(A);
+		}
+
+		A->drawGame(A);
+	}
+}
+
 
 int main(void)
 {
