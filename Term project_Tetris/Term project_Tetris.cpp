@@ -774,6 +774,74 @@ void BTM_gamePlay(Tetris* A)
 	}
 }
 
+void BTM_getKey(BattleTetrisManager* btm)
+{
+	if (GetAsyncKeyState(VK_ESCAPE))
+	{
+		free(btm->p1);
+		free(btm->p2);
+
+		gotoxy(0, 24);
+		printf("Thanks for playing :)");
+		exit(0);
+	}
+}
+
+void BTM_pushAttack(Tetris* A, Tetris* B)
+{
+	if (A->pushAttackRegP < HEIGHT - 1)
+	{
+		int line = (HEIGHT - 1) - (A->pushAttackRegP);
+
+		for (int i = B->getAttackRegP + 1; i < HEIGHT; i++)
+		{
+			for (int j = 0; j < WIDTH - 1; j++)
+			{
+				if (i - line > 0)
+					B->getAttackReg[i - line][j] = B->getAttackReg[i][j];
+			}
+		}
+
+		for (int i = A->getAttackRegP + 1; i < HEIGHT; i++)
+		{
+			for (int j = 0; j < WIDTH - 1; j++)
+			{
+				B->getAttackReg[i][j] = A->pushAttackReg[i][j];
+				A->pushAttackReg[i][j] = -1;
+			}
+		}
+		B->getAttackRegP -= line;
+		A->getAttackRegP += line;
+
+		int queue = HEIGHT - B->getAttackRegP;
+		int queueP = 0;
+
+		while (queue >= 5) 
+		{
+			gotoxy(B->attackQueue_x, B->game_y + 1 + queueP);
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x000C);
+			printf("★");
+			queue -= 5;
+			queueP++;
+		}
+		SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0007);
+		
+		while (queue >= 1) { //한줄은 원 한개
+			gotoxy(B->attackQueue_x, B->game_y + 1 + queueP);
+			printf("○");
+			queue--;
+			queueP++;
+		}
+		
+		while (queueP < 10) { //최대 10칸까지 표시 나머지칸들은 빈칸으로 표시
+			gotoxy(B->attackQueue_x, B->game_y + 1 + queueP);
+			printf("  ");
+			queueP++;
+		}
+	}
+}
+
+void BTM_checkWinner(Tetris A, Tetris B);
 
 int main(void)
 {
