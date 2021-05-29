@@ -27,7 +27,7 @@
 
 typedef struct BLOCKS Blocks;
 typedef struct TETRIS Tetris;
-
+typedef struct BTM BattleTetrisManager;
 
 void gotoxy(int x, int y) {
 	COORD pos = { 2 * (short)x, (short)y };
@@ -702,17 +702,24 @@ void Tetris_getAttack(Tetris* tetris)
 }
 
 
+void BTM_init(BattleTetrisManager* btm);
+void BTM_resetManager(BattleTetrisManager* btm);
+void BTM_gamePlay(Tetris* A);
+void BTM_getKey(BattleTetrisManager* btm);
+void BTM_pushAttack(Tetris* A, Tetris* B);
+void BTM_checkWinner(BattleTetrisManager* btm, Tetris* A, Tetris* B);
+
 typedef struct BTM {
-	void (*init)(BattleTetrisManager* btm);
+	void (*init)(BattleTetrisManager* btm) = BTM_init;
 	Tetris* p1;
 	Tetris* p2;
 
-	void (*resetManager)(BattleTetrisManager* btm);
+	void (*resetManager)(BattleTetrisManager* btm) = BTM_resetManager;
 
-	void (*gamePlay)(Tetris* A);
-	void (*getKey)(void);
-	void (*pushAttack)(Tetris* A, Tetris* B);
-	void (*checkWinner)(Tetris A, Tetris B);
+	void (*gamePlay)(Tetris* A) = BTM_gamePlay;
+	void (*getKey)(BattleTetrisManager* btm) = BTM_getKey;
+	void (*pushAttack)(Tetris* A, Tetris* B) = BTM_pushAttack;
+	void (*checkWinner)(BattleTetrisManager* btm, Tetris* A, Tetris* B) = BTM_checkWinner;
 		bool winner_on;
 
 }BattleTetrisManager;
@@ -841,10 +848,173 @@ void BTM_pushAttack(Tetris* A, Tetris* B)
 	}
 }
 
-void BTM_checkWinner(Tetris A, Tetris B);
+void BTM_checkWinner(BattleTetrisManager* btm, Tetris* A, Tetris* B)
+{
+	int whoWin;
+	if (btm->winner_on == false && A->gameOver_on == true)
+	{
+		btm->winner_on = true;
+		whoWin = B->owner;
+	}
+	else if (btm->winner_on == false && B->gameOver_on == true)
+	{
+		btm->winner_on = true;
+		whoWin = A->owner;
+	}
+	else return;
+
+	gotoxy(15, 10);
+	switch (whoWin)
+	{
+	case 0:
+		printf(" <<  PLAYER WIN  >>");
+		break;
+	case 1:
+		printf(" << PLAYER 1 WIN >>");
+		break;
+	case 2:
+		printf(" << PLAYER 2 WIN >>");
+		break;
+	case 3:
+		printf(" << COMPUTER WIN >>");
+		break;
+	}
+	gotoxy(14, 12);
+	printf("Press <ENTER> to restart");
+}
+
+
+void titleMenu(void)
+{
+	int text_battle_x = 3;
+	int text_battle_y = 2;
+	
+	int text_tetris_x = 16;
+	int text_tetris_y = 9;
+
+	int text_pressKey_x = 20;
+	int text_pressKey_y = 15;
+	
+	int text_battle_order[9] = { 0,1,2,3,4,2,1,4,2 };
+	int text_battle[5][6][25] = {
+		9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,
+		9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,
+		9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,
+		9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,
+		9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,
+		9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,
+
+		1,1,0,0,0,1,0,0,1,1,1,0,1,1,1,0,1,0,0,0,1,1,1,0,0,
+		1,0,1,0,1,0,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,
+		1,1,0,0,1,1,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,1,1,0,0,
+		1,0,1,0,1,0,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,
+		1,1,0,0,1,0,1,0,0,1,0,0,0,1,0,0,1,1,1,0,1,1,1,0,0,
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+		0,1,1,0,0,0,1,0,0,1,1,1,0,1,1,1,0,1,0,0,0,1,1,1,0,
+		0,1,0,1,0,1,0,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,0,0,0,
+		0,1,1,0,0,1,1,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,1,1,0,
+		0,1,0,1,0,1,0,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,0,0,0,
+		0,1,1,0,0,1,0,1,0,0,1,0,0,0,1,0,0,1,1,1,0,1,1,1,0,
+
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+		1,1,0,0,0,1,0,0,1,1,1,0,1,1,1,0,1,0,0,0,1,1,1,0,0,
+		1,0,1,0,1,0,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,
+		1,1,0,0,1,1,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,1,1,0,0,
+		1,0,1,0,1,0,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,0,0,0,0,
+		1,1,0,0,1,0,1,0,0,1,0,0,0,1,0,0,1,1,1,0,1,1,1,0,0,
+
+		0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+		0,0,1,1,0,0,0,1,0,0,1,1,1,0,1,1,1,0,1,0,0,0,1,1,1,
+		0,0,1,0,1,0,1,0,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,0,0,
+		0,0,1,1,0,0,1,1,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,1,1,
+		0,0,1,0,1,0,1,0,1,0,0,1,0,0,0,1,0,0,1,0,0,0,1,0,0,
+		0,0,1,1,0,0,1,0,1,0,0,1,0,0,0,1,0,0,1,1,1,0,1,1,1
+	};
+
+	int text_tetris[5][21] = {
+		1,1,1,0,1,1,1,0,1,1,1,0,1,1,0,0,1,0,1,1,1,
+		0,1,0,0,1,0,0,0,0,1,0,0,1,0,1,0,1,0,1,0,0,
+		0,1,0,0,1,1,1,0,0,1,0,0,1,1,0,0,1,0,1,1,1,
+		0,1,0,0,1,0,0,0,0,1,0,0,1,0,1,0,1,0,0,0,1,
+		0,1,0,0,1,1,1,0,0,1,0,0,1,0,1,0,1,0,1,1,1
+	};
+
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0003);
+	for (int k = 1; k < 9; k++) 
+	{
+		for (int i = 0; i < 6; i++) 
+		{
+			for (int j = 0; j < 25; j++) 
+			{
+				if (text_battle[text_battle_order[k]][i][j] != text_battle[text_battle_order[k - 1]][i][j]) 
+				{
+					gotoxy(text_battle_x + j, text_battle_y + i);
+
+					if (text_battle[text_battle_order[k]][i][j] == 1) 
+						printf("■");
+
+					else if 
+						(text_battle[text_battle_order[k]][i][j] == 0) printf("  ");
+				}
+			}
+		}
+		Sleep(100);
+	}
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0007);
+	Sleep(200);
+
+	gotoxy(2, 16); printf("┌──<  Key Instructions  >──┐");
+	gotoxy(2, 17); printf("│ PLAYER 1            PLAYER 2 │");
+	gotoxy(2, 18); printf("│    T         UP        ↑    │");
+	gotoxy(2, 19); printf("│    H        RIGHT      →    │");
+	gotoxy(2, 20); printf("│    F        LEFT       ←    │");
+	gotoxy(2, 21); printf("│    G      SOFT DROP    ↓    │");
+	gotoxy(2, 22); printf("│    Q      HARD DROP    L    │");
+	gotoxy(2, 23); printf("└───────────────┘");
+
+	for (int cnt = 0;; cnt++) 
+	{
+		Sleep(10);
+
+		if ((cnt + 0) % 60 == 0) 
+		{
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x000F);
+			gotoxy(text_pressKey_x, text_pressKey_y); 
+			printf(" < Press Enter Key to Start >");
+		}
+
+		if ((cnt + 30) % 60 == 0) 
+		{
+			gotoxy(text_pressKey_x, text_pressKey_y);
+			printf("                             ");
+		}
+
+		if (cnt % 75 == 0) 
+		{
+			SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), cnt % 7 + 2);
+			for (int i = 0; i < 5; i++) 
+			{
+				for (int j = 0; j < 21; j++) 
+				{
+					gotoxy(text_tetris_x + j, text_tetris_y + i);
+					if (text_tetris[i][j] == 1) 
+						printf("▣");
+				}
+			}
+		}
+
+		if (GetAsyncKeyState(VK_RETURN)) 
+			break;
+	}
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0007);
+}
+
 
 int main(void)
 {
+	
 
 	return 0;
 }
