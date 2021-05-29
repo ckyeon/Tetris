@@ -269,6 +269,17 @@ void Tetris_drawGame(Tetris* tetris)
 			tetris->gameCpy[i][j] = tetris->gameOrg[i][j];
 		}
 	}
+
+	if(tetris->owner == 1)
+	{
+		gotoxy(tetris->status_x, tetris->status_y + HEIGHT - 2);
+		printf("Score: %d", tetris->score);
+	}
+	if (tetris->owner == 2)
+	{
+		gotoxy(tetris->status_x + WIDTH + 6, tetris->status_y + HEIGHT - 2);
+		printf("Score: %d", tetris->score);
+	}
 }
 
 void Tetris_newBlock(Tetris* tetris, Blocks* block)
@@ -563,19 +574,19 @@ void Tetris_getKey(Tetris* tetris, Blocks* block)
 	}
 	tetris->keyCnt = 3;
 
-	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_LEFT)) || (tetris->owner == PLAYER1 && GetAsyncKeyState('F')))
+	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_LEFT)) || (tetris->owner == PLAYER1 && GetAsyncKeyState('A')))
 		if (tetris->checkCrush(tetris, block->x - 1, block->y, block->rotation) == true)
 			tetris->move_block(tetris, block, LEFT);
 
-	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_RIGHT)) || (tetris->owner == PLAYER1 && GetAsyncKeyState('H')))
+	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_RIGHT)) || (tetris->owner == PLAYER1 && GetAsyncKeyState('D')))
 		if (tetris->checkCrush(tetris, block->x + 1, block->y, block->rotation) == true)
 			tetris->move_block(tetris, block, RIGHT);
 
-	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_DOWN)) || (tetris->owner == PLAYER1 && GetAsyncKeyState('G')))
+	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_DOWN)) || (tetris->owner == PLAYER1 && GetAsyncKeyState('S')))
 		if (tetris->checkCrush(tetris, block->x, block->y + 1, block->rotation) == true)
 			tetris->move_block(tetris, block, DOWN);
 
-	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_UP)) || (tetris->owner == PLAYER1 && GetAsyncKeyState('T')))
+	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_UP)) || (tetris->owner == PLAYER1 && GetAsyncKeyState('W')))
 		if (tetris->checkCrush(tetris, block->x, block->y, (block->rotation + 1) % 4) == true)
 			tetris->move_block(tetris, block, UP);
 		else if (tetris->checkCrush(tetris, block->x, block->y - 1, (block->rotation + 1) % 4) == true)
@@ -583,7 +594,7 @@ void Tetris_getKey(Tetris* tetris, Blocks* block)
 
 	if ((tetris->owner == SINGLE && (GetAsyncKeyState(VK_SPACE) || GetAsyncKeyState('L'))) 
 		|| (tetris->owner == PLAYER2 && GetAsyncKeyState('L')) 
-		|| (tetris->owner == PLAYER1 && GetAsyncKeyState('Q')))
+		|| (tetris->owner == PLAYER1 && GetAsyncKeyState('G')))
 	{
 		while (tetris->crush_on == false)
 		{
@@ -691,7 +702,7 @@ void Tetris_getAttack(Tetris* tetris)
 
 		if (tetris->getAttackRegP < HEIGHT - 1)
 		{
-			for (int i = 6; i < HEIGHT - 1; i++)	// 천장부터 바닥 전까지
+			for (int i = 4; i < HEIGHT - 1; i++)	// 천장부터 바닥 전까지
 			{
 				for (int j = 1; j < WIDTH - 1; j++)
 				{
@@ -770,11 +781,11 @@ void BTM_resetManager(BattleTetrisManager* btm)
 	GetAsyncKeyState(VK_SPACE);
 	GetAsyncKeyState('L');
 
-	GetAsyncKeyState('F');
-	GetAsyncKeyState('H');
+	GetAsyncKeyState('A');
+	GetAsyncKeyState('D');
+	GetAsyncKeyState('S');
+	GetAsyncKeyState('W');
 	GetAsyncKeyState('G');
-	GetAsyncKeyState('T');
-	GetAsyncKeyState('Q');
 }
 
 void BTM_gamePlay(Tetris* A)
@@ -1066,7 +1077,7 @@ int main(void)
 		GM.gamePlay(GM.p2);
 
 		GM.pushAttack(GM.p1, GM.p2);
-		GM.pushAttack(GM.p1, GM.p2);
+		GM.pushAttack(GM.p2, GM.p1);
 
 		GM.checkWinner(&GM, GM.p1, GM.p2);
 	}
