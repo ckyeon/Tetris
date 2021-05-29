@@ -14,11 +14,11 @@
 #define PLAYER2 2
 #define COMPUTER 3
 
-#define ACTIVE_BLOCK ((tetris->block.type+11)*(-1))
+#define ACTIVE_BLOCK ((tetris->block->type+11)*(-1))
 #define CEILLING -1
 #define EMPTY 0
 #define WALL 1
-#define INACTIVE_BLOCK (tetris->block.type+11)
+#define INACTIVE_BLOCK (tetris->block->type+11)
 
 #define BLOCK_SIZE 4
 
@@ -136,7 +136,7 @@ typedef struct TETRIS
 
 	void (*drawGame)(Tetris* tetris) = Tetris_drawGame;
 	void (*newBlock)(Tetris* tetris, Blocks* block) = Tetris_newBlock;
-		Blocks block;
+		Blocks* block;
 		void (*move_block)(Tetris* tetris, Blocks* block, int dir) = Tetris_move_block;
 		void (*dropBlock)(Tetris* tetris) = Tetris_dropBlock;
 		bool (*checkCrush)(Tetris* tetris, int x, int y, int rotation) = Tetris_checkCrush;
@@ -154,7 +154,7 @@ typedef struct TETRIS
 		int gameDelayCnt;
 		void (*cnt_gameDelay)(Tetris* tetris) = Tetris_cnt_gameDelay;
 
-	void (*set_gameMsg)(Tetris* tetris, int x, int y, int type, int val)= Tetris_set_gameMsg;
+	void (*set_gameMsg)(Tetris* tetris, int x, int y, int type, int val) = Tetris_set_gameMsg;
 		int gameMsgCnt;
 		void (*cnt_gameMsg)(Tetris* tetris) = Tetris_cnt_gameMsg;
 
@@ -206,7 +206,7 @@ void Tetris_init(Tetris* tetris, int game_x, int game_y, int status_x, int statu
 	tetris->gameMsgCnt = -1;
 
 	tetris->initialGame(tetris);
-	tetris->newBlock(tetris, &(tetris->block));
+	tetris->newBlock(tetris, tetris->block);
 }
 
 void Tetris_resetGameCpy(Tetris* tetris)
@@ -234,11 +234,13 @@ void Tetris_drawGame(Tetris* tetris)
 			{
 				gotoxy(tetris->game_x + j, tetris->game_y + i);
 				if (tetris->gameOrg[i][j] == EMPTY)
+				{
 					printf("  ");
+				}
 				else if (tetris->gameOrg[i][j] == CEILLING)
 				{
 					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0007);
-					printf(", ");
+					printf(". ");
 				}
 				else if (tetris->gameOrg[i][j] == WALL)
 				{
@@ -247,12 +249,12 @@ void Tetris_drawGame(Tetris* tetris)
 				}
 				else if (tetris->gameOrg[i][j] < 0)
 				{
-					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), tetris->block.getColor(tetris->gameOrg[i][j]));
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), tetris->block->getColor(tetris->gameOrg[i][j]));
 					printf("▣");
 				}
 				else if (tetris->gameOrg[i][j] > 0)
 				{
-					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), tetris->block.getColor(tetris->gameOrg[i][j]));
+					SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), tetris->block->getColor(tetris->gameOrg[i][j]));
 					printf("■");
 				}
 			}
@@ -285,6 +287,20 @@ void Tetris_newBlock(Tetris* tetris, Blocks* block)
 				tetris->gameOrg[block->y + i][block->x + j] = ACTIVE_BLOCK;
 		}
 	}
+
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), block->type_next + 2);
+	for (int i = 1; i < 3; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			gotoxy(tetris->status_x + j, tetris->status_y + i + 2);
+			
+			if (block->shape[block->type_next][0][i][j] == 1)
+				printf("■");
+			else
+				printf("  ");
+		}
+	}
 }
 
 void Tetris_move_block(Tetris* tetris, Blocks* block, int dir)
@@ -294,7 +310,7 @@ void Tetris_move_block(Tetris* tetris, Blocks* block, int dir)
 		for (int j = 0; j < BLOCK_SIZE; j++)
 		{
 			if (block->shape[block->type][block->rotation][i][j] == 1)
-				tetris->gameOrg[block->y + 1][block->x + j] = EMPTY;
+				tetris->gameOrg[block->y + i][block->x + j] = EMPTY;
 		}
 	}
 
@@ -309,7 +325,7 @@ void Tetris_move_block(Tetris* tetris, Blocks* block, int dir)
 					tetris->gameOrg[block->y + i][block->x + j - 1] = ACTIVE_BLOCK;
 			}
 		}
-		block->x--;
+		(block->x)--;
 		break;
 
 	case RIGHT:
@@ -321,7 +337,7 @@ void Tetris_move_block(Tetris* tetris, Blocks* block, int dir)
 					tetris->gameOrg[block->y + i][block->x + j + 1] = ACTIVE_BLOCK;
 			}
 		}
-		block->x++;
+		(block->x)++;
 		break;
 
 	case DOWN:
@@ -333,10 +349,11 @@ void Tetris_move_block(Tetris* tetris, Blocks* block, int dir)
 					tetris->gameOrg[block->y + i + 1][block->x + j] = ACTIVE_BLOCK;
 			}
 		}
-		block->y++;
+		(block->y)++;
 		break;
 
 	case UP:
+		block->rotation = (block->rotation + 1) % 4;
 		for (int i = 0; i < BLOCK_SIZE; i++)
 		{
 			for (int j = 0; j < BLOCK_SIZE; j++)
@@ -357,7 +374,7 @@ void Tetris_move_block(Tetris* tetris, Blocks* block, int dir)
 					tetris->gameOrg[block->y + i - 1][block->x + j] = ACTIVE_BLOCK;
 			}
 		}
-		block->y--;
+		(block->y)--;
 		break;
 	}
 }
@@ -365,19 +382,19 @@ void Tetris_move_block(Tetris* tetris, Blocks* block, int dir)
 void Tetris_dropBlock(Tetris* tetris)
 {
 	if (tetris->fCnt > 0)
-		tetris->fCnt--;
-	bool can_down = tetris->checkCrush(tetris, tetris->block.x, tetris->block.y + 1, tetris->block.rotation);
+		(tetris->fCnt)--;
+	bool can_down = tetris->checkCrush(tetris, tetris->block->x, tetris->block->y + 1, tetris->block->rotation);
 
 	if (tetris->crush_on == true && can_down == true)
 	{
-		tetris->move_block(tetris, &(tetris->block), DOWN);
+		tetris->move_block(tetris, tetris->block, DOWN);
 		tetris->fCnt = tetris->speed[tetris->level];
 		tetris->crush_on = false;
 	}
 
-	if (tetris->crush_on == true && can_down == false && tetris->fCnt == 0)
+	if (tetris->crush_on == true && can_down == false && (tetris->fCnt) == 0)
 	{
-		if (tetris->gameDelayCnt == -1)
+		if ((tetris->gameDelayCnt) == -1)
 		{
 			tetris->drawGame(tetris);
 			tetris->set_gameDelay(tetris, 5);
@@ -394,18 +411,18 @@ void Tetris_dropBlock(Tetris* tetris)
 			}
 			tetris->gameDelayCnt = -1;
 			tetris->crush_on = false;
-			tetris->checkLine(tetris, &(tetris->block));
+			tetris->checkLine(tetris, tetris->block);
 			tetris->getAttack(tetris);
 
 			if (tetris->gameOver_on == false)
-				tetris->newBlock(tetris, &(tetris->block));
+				tetris->newBlock(tetris, tetris->block);
 			tetris->fCnt = tetris->speed[tetris->level];
 		}
 		return;
 	}
 	if (tetris->crush_on == false && can_down == true && tetris->fCnt == 0)
 	{
-		tetris->move_block(tetris, &(tetris->block), DOWN);
+		tetris->move_block(tetris, tetris->block, DOWN);
 		tetris->fCnt = tetris->speed[tetris->level];
 	}
 	if (tetris->crush_on == false && can_down == false)
@@ -421,8 +438,7 @@ bool Tetris_checkCrush(Tetris* tetris, int x, int y, int rotation)
 	{
 		for (int j = 0; j < BLOCK_SIZE; j++)
 		{
-			if (tetris->block.shape[tetris->block.type][rotation][i][j] == 1 
-				&& tetris->gameOrg[y + i][x + j] > 0)
+			if (tetris->block->shape[tetris->block->type][rotation][i][j] == 1 && tetris->gameOrg[y + i][x + j] > 0)
 				return false;
 		}
 	}
@@ -446,6 +462,8 @@ void Tetris_initialGame(Tetris* tetris)
 	}
 
 	gotoxy(tetris->status_x, tetris->status_y);
+	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0007);
+
 	switch (tetris->owner)
 	{
 	case 0:
@@ -545,27 +563,25 @@ void Tetris_getKey(Tetris* tetris, Blocks* block)
 	}
 	tetris->keyCnt = 3;
 
-	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_LEFT))
-		|| (tetris->owner == PLAYER1 && GetAsyncKeyState('F')))
+	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_LEFT)) || (tetris->owner == PLAYER1 && GetAsyncKeyState('F')))
 		if (tetris->checkCrush(tetris, block->x - 1, block->y, block->rotation) == true)
-			tetris->move_block(tetris, &(tetris->block), LEFT);
+			tetris->move_block(tetris, block, LEFT);
 
-	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_RIGHT))
-		|| (tetris->owner == PLAYER1 && GetAsyncKeyState('H')))
+	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_RIGHT)) || (tetris->owner == PLAYER1 && GetAsyncKeyState('H')))
 		if (tetris->checkCrush(tetris, block->x + 1, block->y, block->rotation) == true)
-			tetris->move_block(tetris, &(tetris->block), RIGHT);
+			tetris->move_block(tetris, block, RIGHT);
 
-	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_DOWN))
-		|| (tetris->owner == PLAYER1 && GetAsyncKeyState('G')))
+	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_DOWN)) || (tetris->owner == PLAYER1 && GetAsyncKeyState('G')))
 		if (tetris->checkCrush(tetris, block->x, block->y + 1, block->rotation) == true)
-			tetris->move_block(tetris, &(tetris->block), DOWN);
+			tetris->move_block(tetris, block, DOWN);
 
-	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_UP))
-		|| (tetris->owner == PLAYER1 && GetAsyncKeyState('T')))
+	if (((tetris->owner == SINGLE || tetris->owner == PLAYER2) && GetAsyncKeyState(VK_UP)) || (tetris->owner == PLAYER1 && GetAsyncKeyState('T')))
 		if (tetris->checkCrush(tetris, block->x, block->y, (block->rotation + 1) % 4) == true)
-			tetris->move_block(tetris, &(tetris->block), 100);
+			tetris->move_block(tetris, block, UP);
+		else if (tetris->checkCrush(tetris, block->x, block->y - 1, (block->rotation + 1) % 4) == true)
+			tetris->move_block(tetris, block, 100);
 
-	if ((tetris->owner == SINGLE || (GetAsyncKeyState(VK_SPACE) || GetAsyncKeyState('L'))) 
+	if ((tetris->owner == SINGLE && (GetAsyncKeyState(VK_SPACE) || GetAsyncKeyState('L'))) 
 		|| (tetris->owner == PLAYER2 && GetAsyncKeyState('L')) 
 		|| (tetris->owner == PLAYER1 && GetAsyncKeyState('Q')))
 	{
@@ -603,8 +619,7 @@ void Tetris_checkLine(Tetris* tetris, Blocks* block)
 			{
 				for (int m = 1; m < WIDTH - 1; m++)
 				{
-					if (m > block->x && m < block->x + 4
-						&& block->shape[block->type][block->rotation][i - block->y][m - block->x] == 1)
+					if (m > block->x && m < block->x + 4 && block->shape[block->type][block->rotation][i - block->y][m - block->x] == 1)
 						tetris->pushAttackReg[tetris->pushAttackRegP][m] = 0;
 					else
 						tetris->pushAttackReg[tetris->pushAttackRegP][m] = 16;
@@ -657,8 +672,12 @@ void Tetris_checkLine(Tetris* tetris, Blocks* block)
 				tetris->set_gameMsg(tetris, (WIDTH / 2) - 1, 5, 1, 0);
 			else
 				tetris->set_gameMsg(tetris, (WIDTH / 2) - 1, 5, 2, 0);
+		
+			gotoxy(tetris->status_x, tetris->status_y + 6);
+			printf("Speed:%2d", tetris->speed[tetris->level]);
 		}
 	}
+
 	for (int j = 1; j < WIDTH - 2; j++)
 		if (tetris->gameOrg[3][j] > 0)
 			tetris->gameOver_on = true;
@@ -672,7 +691,7 @@ void Tetris_getAttack(Tetris* tetris)
 
 		if (tetris->getAttackRegP < HEIGHT - 1)
 		{
-			for (int i = 4; i < HEIGHT - 1; i++)
+			for (int i = 6; i < HEIGHT - 1; i++)	// 천장부터 바닥 전까지
 			{
 				for (int j = 1; j < WIDTH - 1; j++)
 				{
@@ -711,8 +730,8 @@ void BTM_checkWinner(BattleTetrisManager* btm, Tetris* A, Tetris* B);
 
 typedef struct BTM {
 	void (*init)(BattleTetrisManager* btm) = BTM_init;
-	Tetris* p1;
-	Tetris* p2;
+	Tetris *p1;
+	Tetris *p2;
 
 	void (*resetManager)(BattleTetrisManager* btm) = BTM_resetManager;
 
@@ -733,15 +752,16 @@ void BTM_init(BattleTetrisManager* btm)
 void BTM_resetManager(BattleTetrisManager* btm)
 {
 	system("cls");
-	free(btm->p1);
-	free(btm->p2);
 	btm->winner_on = false;
 
-	btm->p1 = (Tetris*)malloc(sizeof(Tetris));
+	btm->p1->block->init(btm->p1->block);
 	btm->p1->init(btm->p1, 2, 1, 14, 2, PLAYER1);
 
-	btm->p2 = (Tetris*)malloc(sizeof(Tetris));
+	btm->p2->block->init(btm->p2->block);
 	btm->p2->init(btm->p2, 27, 1, 22, 2, PLAYER2);
+
+	gotoxy(31, 26);
+	printf("Game Exit: ESC");
 
 	GetAsyncKeyState(VK_LEFT);
 	GetAsyncKeyState(VK_RIGHT);
@@ -764,13 +784,13 @@ void BTM_gamePlay(Tetris* A)
 
 	if (A->gameDelay_on == true)
 	{
-		A->cnt_gameMsg(A);
+		A->cnt_gameDelay(A);
 	}
 	else
 	{
 		if (A->gameOver_on == false)
 		{
-			A->getKey(A, &(A->block));
+			A->getKey(A, A->block);
 		}
 		else
 		{
@@ -785,9 +805,6 @@ void BTM_getKey(BattleTetrisManager* btm)
 {
 	if (GetAsyncKeyState(VK_ESCAPE))
 	{
-		free(btm->p1);
-		free(btm->p2);
-
 		gotoxy(0, 24);
 		printf("Thanks for playing :)");
 		exit(0);
@@ -809,7 +826,7 @@ void BTM_pushAttack(Tetris* A, Tetris* B)
 			}
 		}
 
-		for (int i = A->getAttackRegP + 1; i < HEIGHT; i++)
+		for (int i = A->pushAttackRegP + 1; i < HEIGHT; i++)
 		{
 			for (int j = 0; j < WIDTH - 1; j++)
 			{
@@ -818,9 +835,9 @@ void BTM_pushAttack(Tetris* A, Tetris* B)
 			}
 		}
 		B->getAttackRegP -= line;
-		A->getAttackRegP += line;
+		A->pushAttackRegP += line;
 
-		int queue = HEIGHT - B->getAttackRegP;
+		int queue = HEIGHT - 1 - B->getAttackRegP;
 		int queueP = 0;
 
 		while (queue >= 5) 
@@ -850,6 +867,12 @@ void BTM_pushAttack(Tetris* A, Tetris* B)
 
 void BTM_checkWinner(BattleTetrisManager* btm, Tetris* A, Tetris* B)
 {
+	if (btm->winner_on == true)
+	{
+		if(GetAsyncKeyState(VK_RETURN))
+			btm->resetManager(btm);
+	}
+
 	int whoWin;
 	if (btm->winner_on == false && A->gameOver_on == true)
 	{
@@ -955,8 +978,8 @@ void titleMenu(void)
 					if (text_battle[text_battle_order[k]][i][j] == 1) 
 						printf("■");
 
-					else if 
-						(text_battle[text_battle_order[k]][i][j] == 0) printf("  ");
+					else if (text_battle[text_battle_order[k]][i][j] == 0) 
+						printf("  ");
 				}
 			}
 		}
@@ -965,14 +988,15 @@ void titleMenu(void)
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0007);
 	Sleep(200);
 
-	gotoxy(2, 16); printf("┌──<  Key Instructions  >──┐");
-	gotoxy(2, 17); printf("│ PLAYER 1            PLAYER 2 │");
-	gotoxy(2, 18); printf("│    T         UP        ↑    │");
-	gotoxy(2, 19); printf("│    H        RIGHT      →    │");
-	gotoxy(2, 20); printf("│    F        LEFT       ←    │");
-	gotoxy(2, 21); printf("│    G      SOFT DROP    ↓    │");
-	gotoxy(2, 22); printf("│    Q      HARD DROP    L    │");
-	gotoxy(2, 23); printf("└───────────────┘");
+	gotoxy(2, 16); printf("┌─── <  Key Instructions  >───┐");
+	gotoxy(2, 17); printf("│ PLAYER 1            PLAYER 2│");
+	gotoxy(2, 18); printf("│    T         UP        ↑   │");
+	gotoxy(2, 19); printf("│    H        RIGHT      →   │");
+	gotoxy(2, 20); printf("│    F        LEFT       ←   │");
+	gotoxy(2, 21); printf("│    G      SOFT DROP    ↓   │");
+	gotoxy(2, 22); printf("│    Q      HARD DROP     L   │");
+	gotoxy(2, 23); printf("└─────────────────────────────┘");
+
 
 	for (int cnt = 0;; cnt++) 
 	{
@@ -1014,7 +1038,38 @@ void titleMenu(void)
 
 int main(void)
 {
-	
+	srand((unsigned)time(NULL));
+	setcursortype(NOCURSOR);
+	titleMenu();
+
+
+	BattleTetrisManager GM;
+	GM.init(&GM);
+
+	Tetris player1;
+	Tetris player2;
+	GM.p1 = &player1;
+	GM.p2 = &player2;
+
+	Blocks p1_block, p2_block;
+	GM.p1->block = &p1_block;
+	GM.p2->block = &p2_block;
+
+	GM.resetManager(&GM);
+
+	while (1)
+	{
+		Sleep(20);
+		GM.getKey(&GM);
+
+		GM.gamePlay(GM.p1);
+		GM.gamePlay(GM.p2);
+
+		GM.pushAttack(GM.p1, GM.p2);
+		GM.pushAttack(GM.p1, GM.p2);
+
+		GM.checkWinner(&GM, GM.p1, GM.p2);
+	}
 
 	return 0;
 }
