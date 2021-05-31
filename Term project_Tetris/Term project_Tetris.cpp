@@ -123,7 +123,6 @@ void Tetris_resetGameCpy(Tetris* tetris);
 void Tetris_drawGame(Tetris* tetris);
 void Tetris_newBlock(Tetris* tetris, Blocks* block);
 void Tetris_move_block(Tetris* tetris, Blocks* block, int dir);
-void Tetris_draw_block(Tetris* tetris, Blocks* block, int x, int y);
 void Tetris_dropBlock(Tetris* tetris);
 bool Tetris_checkCrush(Tetris* tetris, int x, int y, int rotation);
 void Tetris_initialGame(Tetris* tetris);
