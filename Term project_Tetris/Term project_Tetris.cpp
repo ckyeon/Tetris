@@ -145,7 +145,12 @@ typedef struct TETRIS
 					// speed[level] 값으로 초기화 되며 작을 수록 게임 진행 속도가 빨라짐
 	
 	int owner;		// 플레이어 구분
-	int score;		// 점수 저장
+
+	FILE* fpscore;
+	int best_score;	// 최고 점수 저장
+	int last_score;	// 마지막 점수 저장
+	int score;		// 현재 점수 저장
+	
 	int lineCnt;	// 제거한 줄 수 저장
 
 
@@ -362,11 +367,23 @@ void Tetris_drawGame(Tetris* tetris)
 	// 사용자에 따라 Score의 위치를 다르게 표시
 	if(tetris->owner == 1)
 	{
+		gotoxy(tetris->status_x, tetris->status_y + HEIGHT - 6);
+		printf("Best Score: %d", tetris->best_score);
+
+		gotoxy(tetris->status_x, tetris->status_y + HEIGHT - 4);
+		printf("Last Score: %d", tetris->last_score);
+
 		gotoxy(tetris->status_x, tetris->status_y + HEIGHT - 2);
 		printf("Score: %d", tetris->score);
 	}
 	if (tetris->owner == 2)
 	{
+		gotoxy(tetris->status_x + WIDTH + 6, tetris->status_y + HEIGHT - 6);
+		printf("Best Score: %d", tetris->best_score);
+
+		gotoxy(tetris->status_x + WIDTH + 6, tetris->status_y + HEIGHT - 4);
+		printf("Last Score: %d", tetris->last_score);
+
 		gotoxy(tetris->status_x + WIDTH + 6, tetris->status_y + HEIGHT - 2);
 		printf("Score: %d", tetris->score);
 	}
@@ -835,7 +852,10 @@ void Tetris_checkLine(Tetris* tetris, Blocks* block)
 
 	for (int j = 1; j < WIDTH - 2; j++)
 		if (tetris->gameOrg[3][j] > 0)	// 천장에 INACTIVE 블럭이 닿으면
+		{
 			tetris->gameOver_on = true;	// 게임 오버 On
+			break;
+		}
 }
 
 void Tetris_getAttack(Tetris* tetris)
@@ -882,8 +902,9 @@ void Tetris_getAttack(Tetris* tetris)
 // 함수 원형 선언 (*아래의 함수의 주소를 저장하는 구조체(BattleTetrisManager)의 멤버(함수 포인터)를 위함)
 // 함수 포인터를 사용한 이유는 C언어의 구조체를 C++의 클래스처럼 사용하기 위함
 void BTM_init(BattleTetrisManager* btm);
-void BTM_resetManager(BattleTetrisManager* btm);
-void BTM_gamePlay(Tetris* A);
+void BTM_resetManager(BattleTetrisManager* btm, bool chk);
+void BTM_scoreUpdate(BattleTetrisManager* btm, Tetris* A);
+void BTM_gamePlay(BattleTetrisManager* btm, Tetris* A);
 void BTM_getKey(BattleTetrisManager* btm);
 void BTM_pushAttack(Tetris* A, Tetris* B);
 void BTM_checkWinner(BattleTetrisManager* btm, Tetris* A, Tetris* B);
@@ -892,16 +913,22 @@ typedef struct BTM {
 
 	// 구조체(BattleTetrisManager)를 초기화하는 함수 (C++의 생성자)
 	void (*init)(BattleTetrisManager* btm) = BTM_init;
-	Tetris *p1;	// tetris 구조체를 저장하는 포인터
+	
+	
+	// tetris 구조체를 저장하는 포인터
+	Tetris *p1;	
 	Tetris *p2;
 
 	// 게임을 초기화하는 함수 (tetris.init()함수를 실행해 Tetris 구조체를 초기화하고 게임을 시작)
-	void (*resetManager)(BattleTetrisManager* btm) = BTM_resetManager;
+	void (*resetManager)(BattleTetrisManager* btm, bool chk) = BTM_resetManager;
 
+	// Last Score와 Best Score를 갱신하는 함수
+	void (*scoreUpdate)(BattleTetrisManager* btm, Tetris* A) = BTM_scoreUpdate;
 
 	// 게임을 진행하는 함수
-	void (*gamePlay)(Tetris* A) = BTM_gamePlay;
+	void (*gamePlay)(BattleTetrisManager* btm, Tetris* A) = BTM_gamePlay;
 
+	// ENTER를 입력 받으면 게임을 재시작 시키고,
 	// ESC를 입력 받으면 게임을 종료시키고 감사 메시지를 출력하는 함수
 	void (*getKey)(BattleTetrisManager* btm) = BTM_getKey;
 
@@ -916,28 +943,44 @@ typedef struct BTM {
 
 void BTM_init(BattleTetrisManager* btm)
 {
-	// 플레이어가 저장될 포인터 초기화
+	// 플레이어가 저장될 포인터와 파일이 저장될 초기화
 	btm->p1 = NULL;
 	btm->p2 = NULL;
 }
 
-void BTM_resetManager(BattleTetrisManager* btm)
+void BTM_resetManager(BattleTetrisManager* btm, bool chk)
 {
+	// Best Score와 Last Score를 담은 파일을 불러온다.
+	btm->p1->fpscore = fopen("score_p1.txt", "r");
+	btm->p2->fpscore = fopen("score_p2.txt", "r");
+
 	// 콘솔 화면을 지우는 함수
 	system("cls");
 	// 게임을 재시작 했을 때는 true이므로 게임을 시작하기 전에 false로 변경
 	btm->winner_on = false;
 
+
+	// Tetirs.init 함수에서 newBlock()을 호출하므로 블럭 구조체부터 초기화
+	
 	// player1의 블럭 구조체 초기화
 	btm->p1->block->init(btm->p1->block);
+
 	// player1의 Tetris 구조체 초기화 및 좌표 설정
 	btm->p1->init(btm->p1, 2, 1, 14, 2, PLAYER1);
+
+	// p1에 Best Score와 Last Score 입력	(게임이 재시작 될 때 resetManager함수가 실행 되므로 재시작 시 갱신)
+	fscanf(btm->p1->fpscore, "%d %d", &btm->p1->best_score, &btm->p1->last_score);
 
 
 	// player2의 블럭 구조체 초기화
 	btm->p2->block->init(btm->p2->block);
+
 	// player2의 Tetris 구조체 초기화 및 좌표 설정
 	btm->p2->init(btm->p2, 27, 1, 22, 2, PLAYER2);
+
+	// p2에 Best Score와 Last Score 입력	(게임이 재시작 될 때 resetManager함수가 실행 되므로 재시작 시 갱신)
+	fscanf(btm->p2->fpscore, "%d %d", &btm->p2->best_score, &btm->p2->last_score);
+
 
 	// 게임 종료를 할 수 있는 안내 메시지 출력
 	gotoxy(31, 26);
@@ -957,7 +1000,32 @@ void BTM_resetManager(BattleTetrisManager* btm)
 	GetAsyncKeyState('G');
 }
 
-void BTM_gamePlay(Tetris* A)
+void BTM_scoreUpdate(BattleTetrisManager* btm, Tetris* A)
+{
+	// read 모드로 열려있는 파일을 닫음
+	fclose(A->fpscore);
+
+	// write 모드로 열려있는 파일을 염
+	switch (A->owner)
+	{
+	case 1:
+		A->fpscore = fopen("score_p1.txt", "w");
+		break;
+
+	case 2:
+		A->fpscore = fopen("score_p2.txt", "w");
+		break;
+	}
+
+	if (A->score > A->best_score)	// 현재 Score와 Best Score을 비교해서 알맞게 점수 저장
+		fprintf(A->fpscore, "%d\t%d\nBest\tLast", A->score, A->score);
+	else
+		fprintf(A->fpscore, "%d\t%d\nBest\tLast", A->best_score, A->score);
+
+	fclose(A->fpscore);
+}
+
+void BTM_gamePlay(BattleTetrisManager* btm, Tetris* A)
 {
 	if (A->gameMsgCnt >= 0)	// 게임 메시지가 켜져있을 경우
 		A->cnt_gameMsg(A);	// 게임 메시지 Cnt를 감소시키는 함수 호출
@@ -977,6 +1045,7 @@ void BTM_gamePlay(Tetris* A)
 		{
 			// 게임 오버 애니메이션을 진행하는 함수 호출
 			A->gameOver(A);
+			btm->scoreUpdate(btm, A);
 		}
 
 		// gameOrg와 gameCpy를 비교해 게임을 그리는 함수 호출
@@ -986,6 +1055,12 @@ void BTM_gamePlay(Tetris* A)
 
 void BTM_getKey(BattleTetrisManager* btm)
 {
+	if (btm->winner_on == true)	// 게임의 승자가 나온 경우
+	{
+		if (GetAsyncKeyState(VK_RETURN))	// ENTER를 입력하면 게임 재시작
+			btm->resetManager(btm, true);
+	}
+
 	if (GetAsyncKeyState(VK_ESCAPE))	// ESC를 입력하면
 	{
 		gotoxy(0, 24);
@@ -1052,12 +1127,6 @@ void BTM_pushAttack(Tetris* A, Tetris* B)
 
 void BTM_checkWinner(BattleTetrisManager* btm, Tetris* A, Tetris* B)
 {
-	if (btm->winner_on == true)	// 게임의 승자가 나온 경우
-	{
-		if(GetAsyncKeyState(VK_RETURN))	// ENTER를 입력하면 게임 재시작
-			btm->resetManager(btm);
-	}
-
 	int whoWin;	// 누가 이겼는지 저장
 	
 	// 승자가 없는 상황에서 A가 게임 오버인 경우
@@ -1075,7 +1144,7 @@ void BTM_checkWinner(BattleTetrisManager* btm, Tetris* A, Tetris* B)
 	}
 	else return;	// 아무 것도 아니면 함수 반환
 
-	gotoxy(15, 10);
+	gotoxy(15, 13);
 	switch (whoWin)	// 이긴 사람에 따라 출력 메시지 변경
 	{
 	case 1:
@@ -1085,7 +1154,7 @@ void BTM_checkWinner(BattleTetrisManager* btm, Tetris* A, Tetris* B)
 		printf(" << PLAYER 2 WIN >>");
 		break;
 	}
-	gotoxy(14, 12);
+	gotoxy(14, 15);
 	printf("Press <ENTER> to restart");	// 엔터를 누르면 재시작한다는 안내 문구 출력
 }
 
@@ -1232,11 +1301,32 @@ void titleMenu(void)
 	SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 0x0007);	// 커서 색 변경
 }
 
+void check_scoreData()
+{
+	FILE* fp;
+	
+	fp = fopen("score_p1.txt", "r");	
+	if (fp == NULL)	// 파일이 존재하지 않으면
+	{
+		fp = fopen("score_p1.txt", "w");
+		fprintf(fp, "0\t0\nBest\tLast");	// Best Score: 0점, Last Score: 0점으로 초기화
+	}
+	fclose(fp);
+
+	fp = fopen("score_p2.txt", "r");
+	if (fp == NULL)	// 파일이 존재하지 않으면
+	{
+		fp = fopen("score_p2.txt", "w");
+		fprintf(fp, "0\t0\nBest\tLast");	// Best Score: 0점, Last Score: 0점으로 초기화
+	}
+	fclose(fp);
+}
 
 int main(void)
 {
 	srand((unsigned)time(NULL));	// 난수 생성
 	setcursortype(NOCURSOR);	// 커서 제거
+	check_scoreData();	// 스코어가 저장된 파일이 있는지 확인하고 없으면 0점으로 생성
 	titleMenu();	// 게임 타이틀 출력
 
 
@@ -1256,15 +1346,15 @@ int main(void)
 	GM.p2->block = &p2_block;
 
 	// GM 리셋
-	GM.resetManager(&GM);
+	GM.resetManager(&GM, false);
 
 	while (1)	// 게임 진행
 	{
 		Sleep(20);
 		GM.getKey(&GM);
 
-		GM.gamePlay(GM.p1);
-		GM.gamePlay(GM.p2);
+		GM.gamePlay(&GM, GM.p1);
+		GM.gamePlay(&GM, GM.p2);
 
 		GM.pushAttack(GM.p1, GM.p2);
 		GM.pushAttack(GM.p2, GM.p1);
